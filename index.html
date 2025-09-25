@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>雙計時器（交替循環 + 臨界嗶聲 + 語音播報對調）</title>
+<style>
+  :root { --bg:#0b1020; --card:#121a33; --ink:#e9eefc; --muted:#95a1c4; --accent:#6aa9ff; --warn:#ffb86b; }
+  *{box-sizing:border-box} body{margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto; color:var(--ink); background:linear-gradient(180deg,#0a0f1e,#0d1326);}
+  .wrap{max-width:900px; margin:24px auto; padding:16px;}
+  .title{font-weight:800; font-size:24px; letter-spacing:.5px; margin-bottom:12px}
+  .sub{color:var(--muted); margin-bottom:18px}
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px}
+  .card{background:var(--card); border:1px solid rgba(255,255,255,.06); border-radius:16px; padding:16px; box-shadow:0 8px 24px rgba(0,0,0,.25)}
+  .card h2{margin:0 0 8px 0; font-size:18px}
+  .row{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+  .time-input{display:flex; align-items:center; gap:6px}
+  .time-input input[type="number"]{width:64px; padding:8px; border-radius:10px; border:1px solid rgba(255,255,255,.12); background:#0c1430; color:var(--ink); font-size:18px; text-align:center}
+  .time-input span{opacity:.75}
+  .beep{margin-top:8px; color:var(--muted); font-size:14px}
+  .pill{padding:6px 10px; border-radius:999px; border:1px solid rgba(255,255,255,.12); background:#0c1430; color:var(--ink); display:inline-flex; gap:8px; align-items:center}
+  fieldset{border:none; padding:0; margin:8px 0}
+  .choices{display:flex; gap:8px; flex-wrap:wrap}
+  .choices label{display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; border:1px solid rgba(255,255,255,.12); background:#0e1736; cursor:pointer; user-select:none}
+  .choices input{accent-color:var(--accent)}
+  .custom-wrap{display:flex; gap:8px; align-items:center; margin-top:6px}
+  .custom-wrap input[type="text"]{flex:1; min-width:120px; padding:6px 10px; border-radius:10px; border:1px solid rgba(255,255,255,.12); background:#0c1430; color:var(--ink)}
+  .display{font-variant-numeric:tabular-nums; font-size:48px; font-weight:800; letter-spacing:1px; margin:8px 0 4px}
+  .badge{font-size:12px; color:#0b1020; background:var(--warn); border-radius:8px; padding:2px 8px; display:inline-block}
+  .controls{margin-top:16px; display:flex; gap:10px; flex-wrap:wrap}
+  button{padding:10px 14px; border-radius:12px; border:1px solid rgba(255,255,255,.14); background:#0f1a3b; color:var(--ink); cursor:pointer; font-weight:600}
+  button.primary{background:linear-gradient(135deg,#4d87ff,#6aa9ff); color:#0a0f1e; border:none}
+  button.warn{background:#2b1a05; border:1px solid #ffb86b; color:#ffb86b}
+  .now{opacity:.9}
+  .footer{margin-top:18px; font-size:13px; color:var(--muted)}
+  .switch{display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px; border:1px solid rgba(255,255,255,.12); background:#0c1430}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="title">雙計時器｜交替循環（到點播報對調）</div>
+  <div class="sub">A 組結束播報「B 組的詞」，B 組結束播報「A 組的詞」。接近結束會每秒嗶（可自定起點）。</div>
+
+  <div class="grid">
+    <!-- Timer A -->
+    <div class="card" id="cardA">
+      <h2>第一組（A） <span class="badge" id="badgeA">待命</span></h2>
+      <div class="row time-input">
+        <label>分鐘</label>
+        <input id="minA" type="number" min="0" max="99" value="00" inputmode="numeric">
+        <span>：</span>
+        <label>秒</label>
+        <input id="secA" type="number" min="0" max="59" value="30" inputmode="numeric">
+      </div>
+      <div class="beep">
+        <label class="pill">嗶聲起點（剩餘秒數）
+          <input id="beepA" type="number" min="0" max="60" value="5" style="width:64px;margin-left:8px;">
+        </label>
+      </div>
+      <fieldset>
+        <legend style="margin:6px 0; color:var(--muted)">到時播報詞（會在「B 組」結束時被播報）</legend>
+        <div class="choices" id="choicesA">
+          <label><input type="radio" name="wordA" value="開始" checked>開始</label>
+          <label><input type="radio" name="wordA" value="運動">運動</label>
+          <label><input type="radio" name="wordA" value="發射">發射</label>
+          <label><input type="radio" name="wordA" value="自訂">自訂</label>
+        </div>
+        <div class="custom-wrap">
+          <input id="customA" type="text" placeholder="自訂詞（選自訂時生效）" />
+        </div>
+      </fieldset>
+      <div class="display" id="dispA">00:30</div>
+      <div class="now" id="nowA">狀態：停止</div>
+    </div>
+
+    <!-- Timer B -->
+    <div class="card" id="cardB">
+      <h2>第二組（B） <span class="badge" id="badgeB">待命</span></h2>
+      <div class="row time-input">
+        <label>分鐘</label>
+        <input id="minB" type="number" min="0" max="99" value="00" inputmode="numeric">
+        <span>：</span>
+        <label>秒</label>
+        <input id="secB" type="number" min="0" max="59" value="30" inputmode="numeric">
+      </div>
+      <div class="beep">
+        <label class="pill">嗶聲起點（剩餘秒數）
+          <input id="beepB" type="number" min="0" max="60" value="5" style="width:64px;margin-left:8px;">
+        </label>
+      </div>
+      <fieldset>
+        <legend style="margin:6px 0; color:var(--muted)">到時播報詞（會在「A 組」結束時被播報）</legend>
+        <div class="choices" id="choicesB">
+          <label><input type="radio" name="wordB" value="休息" checked>休息</label>
+          <label><input type="radio" name="wordB" value="暫停">暫停</label>
+          <label><input type="radio" name="wordB" value="恢復">恢復</label>
+          <label><input type="radio" name="wordB" value="自訂">自訂</label>
+        </div>
+        <div class="custom-wrap">
+          <input id="customB" type="text" placeholder="自訂詞（選自訂時生效）" />
+        </div>
+      </fieldset>
+      <div class="display" id="dispB">00:30</div>
+      <div class="now" id="nowB">狀態：停止</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="primary" id="startBtn">開始循環（A → B → A…）</button>
+    <button id="pauseBtn" disabled>暫停</button>
+    <button class="warn" id="resetBtn">重設</button>
+    <span class="pill">目前：<strong id="who">—</strong></span>
+    <label class="switch"><input id="vibrateChk" type="checkbox">啟用震動提示</label>
+  </div>
+
+  <div class="footer">
+    提醒：聲音/語音需先有一次按鈕互動才會啟用。計時使用高精度基準避免飄移；暫停/恢復保留剩餘毫秒；設定自動保存。
+  </div>
+</div>
+
+<script>
+(() => {
+  // ===== 小工具 =====
+  const clamp = (v,min,max)=>Math.max(min,Math.min(max, v|0));
+  const pad2 = n => String(n).padStart(2,'0');
+  const el = id => document.getElementById(id);
+  const save = (k,v)=>localStorage.setItem(k, JSON.stringify(v));
+  const load = (k,def)=>{ try{ const x=JSON.parse(localStorage.getItem(k)); return x ?? def; }catch{ return def; } };
+
+  // ===== 音訊（嗶聲）=====
+  let audioCtx = null, lastBeepAt = 0;
+  function ensureAudio() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  }
+  function beep() {
+    if (!audioCtx) return; // 尚未互動
+    const nowMS = performance.now();
+    if (nowMS - lastBeepAt < 120) return; // 簡易節流，避免重疊爆音
+    lastBeepAt = nowMS;
+
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = 'square';
+    o.frequency.value = 1000;
+    g.gain.value = 0.0001;
+    o.connect(g).connect(audioCtx.destination);
+    const t = audioCtx.currentTime;
+    g.gain.exponentialRampToValueAtTime(0.25, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+    o.start(t);
+    o.stop(t + 0.2);
+  }
+
+  // ===== 語音（Speech Synthesis）=====
+  function speak(text) {
+    if (!text) return;
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'zh-TW';
+    u.rate = 1.0;
+    u.pitch = 1.0;
+    window.speechSynthesis.cancel(); // 清掉重疊
+    window.speechSynthesis.speak(u);
+  }
+
+  // ===== 震動 =====
+  function vib(pattern) {
+    const chk = el('vibrateChk');
+    if (!chk.checked) return;
+    if (navigator.vibrate) navigator.vibrate(pattern);
+  }
+
+  // ===== DOM 取用 =====
+  const minA = el('minA'), secA = el('secA'), dispA = el('dispA'), nowA = el('nowA'), beepA = el('beepA'), badgeA = el('badgeA');
+  const minB = el('minB'), secB = el('secB'), dispB = el('dispB'), nowB = el('nowB'), beepB = el('beepB'), badgeB = el('badgeB');
+  const customA = el('customA'), customB = el('customB');
+  const startBtn = el('startBtn'), pauseBtn = el('pauseBtn'), resetBtn = el('resetBtn'), who = el('who'), vibrateChk = el('vibrateChk');
+
+  function selectedWord(group) {
+    const name = group === 'A' ? 'wordA' : 'wordB';
+    const val = (document.querySelector(`input[name="${name}"]:checked`)||{}).value;
+    if (val === '自訂') {
+      const t = group === 'A' ? customA.value.trim() : customB.value.trim();
+      return t || '完成';
+    }
+    return val || '完成';
+  }
+
+  function totalSeconds(group) {
+    if (group === 'A') {
+      const m = clamp(minA.value, 0, 99); const s = clamp(secA.value, 0, 59);
+      return m*60 + s;
+    } else {
+      const m = clamp(minB.value, 0, 99); const s = clamp(secB.value, 0, 59);
+      return m*60 + s;
+    }
+  }
+  function beepStart(group) {
+    return clamp(group==='A' ? beepA.value : beepB.value, 0, 60);
+  }
+  function setDisplay(group, secs) {
+    const mm = Math.floor(secs/60), ss = secs%60;
+    (group==='A'?dispA:dispB).textContent = `${pad2(mm)}:${pad2(ss)}`;
+  }
+  function setState(group, text, active=false) {
+    (group==='A'?nowA:nowB).textContent = `狀態：${text}`;
+    (group==='A'?badgeA:badgeB).textContent = active ? '計時中' : (text==='停止'?'待命':text);
+  }
+
+  // 兩位數輸入修正
+  const fix2 = (inp)=>{ inp.addEventListener('change',()=>{ let v=clamp(inp.value, +inp.min, +inp.max); inp.value = pad2(v); saveAll(); });};
+  [minA,secA,minB,secB,beepA,beepB,customA,customB].forEach(e => {
+    if (e.type === 'number') fix2(e);
+    e.addEventListener('input', saveAll);
+  });
+  document.querySelectorAll('input[name="wordA"],input[name="wordB"]').forEach(r => r.addEventListener('change', saveAll));
+  vibrateChk.addEventListener('change', saveAll);
+
+  // ===== 計時核心 =====
+  let timer = {
+    current: null,       // 'A' or 'B'
+    running: false,
+    endTs: 0,
+    remainMs: 0,
+    rafId: null,
+    lastWhole: null,
+  };
+
+  function startCycle() {
+    ensureAudio();
+    if (timer.running) return;
+    timer.current = 'A';
+    who.textContent = 'A 組';
+    setState('A','啟動', true);
+    setState('B','待命', false);
+    runTimerFor('A', totalSeconds('A'));
+    startBtn.disabled = true;
+    pauseBtn.disabled = false;
+  }
+
+  function otherGroup(g){ return g==='A'?'B':'A'; }
+
+  function switchNext() {
+    timer.current = otherGroup(timer.current);
+    who.textContent = timer.current + ' 組';
+    const secs = totalSeconds(timer.current);
+    runTimerFor(timer.current, secs);
+  }
+
+  function runTimerFor(group, secs) {
+    if (secs <= 0) {
+      // 對調播報：A 結束播 B 的詞；B 結束播 A 的詞
+      const tgt = otherGroup(group);
+      speak(selectedWord(tgt));
+      vib([50,70,50]); // 切換震動
+      switchNext();
+      return;
+    }
+    timer.running = true;
+    timer.lastWhole = null;
+    timer.endTs = performance.now() + secs*1000;
+    timer.remainMs = secs*1000;
+
+    (group==='A'?badgeA:badgeB).textContent = '計時中';
+    (group==='A'?badgeB:badgeA).textContent = '待命';
+    setState(group, '計時中', true);
+    setState(otherGroup(group), '待命', false);
+
+    cancelAnimationFrame(timer.rafId);
+    tick();
+  }
+
+  function tick() {
+    if (!timer.running) return;
+    const now = performance.now();
+    let remain = Math.max(0, timer.endTs - now);
+    timer.remainMs = remain;
+
+    const whole = Math.ceil(remain / 1000);
+    const group = timer.current;
+    setDisplay(group, Math.max(0, whole));
+
+    // 嗶聲：當剩餘整秒 <= 設定，且整秒數有變化
+    if (timer.lastWhole !== null && whole !== timer.lastWhole) {
+      const threshold = beepStart(group);
+      if (whole > 0 && whole <= threshold) { beep(); vib(25); }
+    }
+    timer.lastWhole = whole;
+
+    if (remain <= 0) {
+      // 到點：對調播報 + 切換
+      const tgt = otherGroup(group);
+      speak(selectedWord(tgt));
+      vib([60,80,60]);
+      switchNext();
+      return;
+    }
+    timer.rafId = requestAnimationFrame(tick);
+  }
+
+  function pause() {
+    if (!timer.running) return;
+    timer.running = false;
+    cancelAnimationFrame(timer.rafId);
+    setState(timer.current, '已暫停', false);
+    pauseBtn.textContent = '繼續';
+  }
+
+  function resume() {
+    if (timer.running) return;
+    ensureAudio();
+    timer.running = true;
+    timer.endTs = performance.now() + timer.remainMs;
+    setState(timer.current, '計時中', true);
+    pauseBtn.textContent = '暫停';
+    tick();
+  }
+
+  function resetAll() {
+    timer.running = false;
+    cancelAnimationFrame(timer.rafId);
+    timer.current = null;
+    timer.remainMs = 0;
+    who.textContent = '—';
+    setDisplay('A', totalSeconds('A'));
+    setDisplay('B', totalSeconds('B'));
+    setState('A','停止',false);
+    setState('B','停止',false);
+    badgeA.textContent = '待命'; badgeB.textContent = '待命';
+    startBtn.disabled = false;
+    pauseBtn.disabled = true;
+    pauseBtn.textContent = '暫停';
+    window.speechSynthesis.cancel();
+  }
+
+  // 事件
+  startBtn.addEventListener('click', startCycle);
+  pauseBtn.addEventListener('click', () => { if (timer.running) pause(); else resume(); });
+  resetBtn.addEventListener('click', resetAll);
+
+  // 即時顯示
+  function bindLiveDisplay(mEl, sEl, dEl) {
+    const upd = () => {
+      const secs = clamp(mEl.value,0,99)*60 + clamp(sEl.value,0,59);
+      dEl.textContent = `${pad2(Math.floor(secs/60))}:${pad2(secs%60)}`;
+    };
+    [mEl,sEl].forEach(e=>e.addEventListener('input',upd));
+    upd();
+  }
+  bindLiveDisplay(minA, secA, dispA);
+  bindLiveDisplay(minB, secB, dispB);
+
+  // 背景暫停（回來手動繼續，避免節拍亂掉）
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && timer.running) pause();
+  });
+
+  // ===== 設定保存 / 載入 =====
+  function saveAll(){
+    const data = {
+      minA:minA.value, secA:secA.value, beepA:beepA.value,
+      minB:minB.value, secB:secB.value, beepB:beepB.value,
+      wordA:(document.querySelector('input[name="wordA"]:checked')||{}).value,
+      wordB:(document.querySelector('input[name="wordB"]:checked')||{}).value,
+      customA:customA.value, customB:customB.value,
+      vibrate:vibrateChk.checked
+    };
+    save('dualTimersSwap', data);
+  }
+  function loadAll(){
+    const d = load('dualTimersSwap', null);
+    if (!d) return;
+    minA.value=d.minA??minA.value; secA.value=d.secA??secA.value; beepA.value=d.beepA??beepA.value;
+    minB.value=d.minB??minB.value; secB.value=d.secB??secB.value; beepB.value=d.beepB??beepB.value;
+    ['A','B'].forEach(g=>{
+      const v = d['word'+g];
+      if (v) { const r = document.querySelector(`input[name="word${g}"][value="${v}"]`); if (r) r.checked = true; }
+    });
+    customA.value=d.customA??''; customB.value=d.customB??'';
+    vibrateChk.checked=!!d.vibrate;
+    setDisplay('A', totalSeconds('A'));
+    setDisplay('B', totalSeconds('B'));
+  }
+  loadAll();
+
+})();
+</script>
+</body>
+</html>
