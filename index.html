@@ -3,22 +3,23 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>雙計時器（配方、多輪、長休息、對調播報） / Dual Timers with Recipes</title>
+<title>雙計時器 · 配方 + 滑桿強化 / Dual Timers · Recipes + Sliders</title>
 <style>
-  :root { --bg:#0b1020; --card:#121a33; --ink:#e9eefc; --muted:#95a1c4; --accent:#6aa9ff; --warn:#ffb86b; }
-  *{box-sizing:border-box} body{margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto; color:var(--ink); background:linear-gradient(180deg,#0a0f1e,#0d1326);}
-  .wrap{max-width:1000px; margin:24px auto; padding:16px;}
+  :root { --bg:#0b1020; --card:#121a33; --ink:#e9eefc; --muted:#95a1c4; --accent:#6aa9ff; --warn:#ffb86b; --ok:#46d39a; }
+  *{box-sizing:border-box}
+  body{margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto; color:var(--ink); background:linear-gradient(180deg,#0a0f1e,#0d1326);}
+  .wrap{max-width:1024px; margin:24px auto; padding:16px;}
   .title{font-weight:800; font-size:24px; letter-spacing:.5px; margin-bottom:8px}
   .sub{color:var(--muted); margin-bottom:18px}
   .en{display:block; font-size:12px; color:var(--muted)}
-  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px}
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:16px}
   .card{background:var(--card); border:1px solid rgba(255,255,255,.06); border-radius:16px; padding:16px; box-shadow:0 8px 24px rgba(0,0,0,.25)}
   .card h2{margin:0 0 8px 0; font-size:18px}
   .row{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
   .time-input{display:flex; align-items:center; gap:6px}
   .time-input input[type="number"]{width:64px; padding:8px; border-radius:10px; border:1px solid rgba(255,255,255,.12); background:#0c1430; color:var(--ink); font-size:18px; text-align:center}
   .time-input span{opacity:.75}
-  .beep, .hint{margin-top:8px; color:var(--muted); font-size:14px}
+  .beep,.hint{margin-top:8px; color:var(--muted); font-size:14px}
   .pill{padding:6px 10px; border-radius:999px; border:1px solid rgba(255,255,255,.12); background:#0c1430; color:var(--ink); display:inline-flex; gap:8px; align-items:center}
   fieldset{border:none; padding:0; margin:8px 0}
   .choices{display:flex; gap:8px; flex-wrap:wrap}
@@ -26,26 +27,52 @@
   .choices input{accent-color:var(--accent)}
   .custom-wrap{display:flex; gap:8px; align-items:center; margin-top:6px}
   .custom-wrap input[type="text"]{flex:1; min-width:120px; padding:6px 10px; border-radius:10px; border:1px solid rgba(255,255,255,.12); background:#0c1430; color:var(--ink)}
-  .display{font-variant-numeric:tabular-nums; font-size:48px; font-weight:800; letter-spacing:1px; margin:8px 0 4px}
+  .display{font-variant-numeric:tabular-nums; font-size:48px; font-weight:800; letter-spacing:1px; margin:8px 0 8px}
   .badge{font-size:12px; color:#0b1020; background:var(--warn); border-radius:8px; padding:2px 8px; display:inline-block}
   .controls{margin-top:16px; display:flex; gap:10px; flex-wrap:wrap}
   button{padding:10px 14px; border-radius:12px; border:1px solid rgba(255,255,255,.14); background:#0f1a3b; color:var(--ink); cursor:pointer; font-weight:600}
   button.primary{background:linear-gradient(135deg,#4d87ff,#6aa9ff); color:#0a0f1e; border:none}
   button.warn{background:#2b1a05; border:1px solid #ffb86b; color:#ffb86b}
-  .now{opacity:.9}
   .footer{margin-top:18px; font-size:13px; color:var(--muted)}
   .switch{display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px; border:1px solid rgba(255,255,255,.12); background:#0c1430}
+
+  /* 狀態強化 */
+  .status-bar{display:flex; gap:10px; flex-wrap:wrap; margin:10px 0 12px}
+  .big-status{flex:1; min-width:240px; padding:10px 12px; border-radius:12px;
+    background:rgba(70,211,154,.12); border:1px solid rgba(70,211,154,.35);
+    font-weight:800; font-size:22px; letter-spacing:.5px; display:flex; justify-content:space-between; align-items:center}
+  .big-status .subtxt{font-size:13px; color:var(--muted); font-weight:600}
+  .pill.kpi{font-size:14px}
+  .strong{color:var(--ok)}
+
+  /* 滑桿樣式（通用） */
+  .slider-row{display:grid; grid-template-columns:120px 1fr auto; gap:10px; align-items:center; margin-top:8px}
+  .slider-row.long .slider{width:100%;}
+  input[type="range"]{width:100%}
+  .val{min-width:56px; text-align:right; font-variant-numeric:tabular-nums}
+
+  /* 讓時間滑桿更長、易於精調（在卡片內占滿寬） */
+  .time-slider{padding:4px 0}
   .recipes{display:grid; grid-template-columns:1.3fr 1fr 1fr 1fr; gap:8px; margin-bottom:12px}
   .recipes input[type="text"], .recipes select{width:100%; padding:8px; border-radius:10px; border:1px solid rgba(255,255,255,.12); background:#0c1430; color:var(--ink)}
   .split{display:grid; grid-template-columns:1fr 1fr; gap:12px}
   .hr{height:1px; background:rgba(255,255,255,.08); margin:10px 0}
-  .kpi{display:flex; gap:10px; align-items:center; flex-wrap:wrap; font-size:14px}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="title">雙計時器｜配方 / Dual Timers · Recipes</div>
-  <div class="sub">A 組與 B 組交替倒數；接近結束每秒嗶；到點「對調播報」；可儲存多個配方、一鍵啟動、設定輪數、自動停止與長休息。<span class="en">Alternate A/B countdown; per-second beep near end; swapped end-of-round speech; recipe save/load & one-click start; set rounds, auto stop, and long rest.</span></div>
+  <div class="title">雙計時器｜配方 + 滑桿 / Dual Timers · Recipes + Sliders</div>
+  <div class="sub">A/B 交替、臨界嗶聲、對調播報、長休息、配方儲存與一鍵啟動；新增**所有數值皆可用滑桿**，時間滑桿加長、嗶聲1–10秒、輪數1–99。<span class="en">Alternate A/B, critical beeps, swapped speech, long rest, recipes; now **all numbers have sliders**. Longer time sliders, beep 1–10s, rounds 1–99.</span></div>
+
+  <!-- 顯眼狀態列 -->
+  <div class="status-bar">
+    <div class="big-status">
+      <span>目前：<span id="who">—</span></span>
+      <span class="subtxt">Now</span>
+    </div>
+    <span class="pill kpi">已完成輪數：<strong id="roundsDone" class="strong">0</strong><span class="en">&nbsp;Rounds Done</span></span>
+    <span class="pill kpi">目標輪數：<strong id="roundsGoal">∞</strong><span class="en">&nbsp;Target</span></span>
+  </div>
 
   <!-- 配方管理 -->
   <div class="card">
@@ -67,25 +94,40 @@
         <button id="startRecipe" class="primary">一鍵啟動當前配方<span class="en">Start Selected Recipe</span></button>
       </div>
     </div>
-    <div class="kpi">
-      <span class="pill">目前：<strong id="who">—</strong><span class="en">&nbsp;Now</span></span>
-      <span class="pill">已完成輪數：<strong id="roundsDone">0</strong><span class="en">&nbsp;Rounds Done</span></span>
-      <span class="pill">目標輪數：<strong id="roundsGoal">∞</strong><span class="en">&nbsp;Target</span></span>
-    </div>
     <div class="hr"></div>
     <div class="split">
       <div>
         <label>本次輪數（A→B 為 1 輪）<span class="en">Rounds this run (A→B = 1)</span></label>
-        <div class="row">
-          <input id="roundsInput" type="number" min="1" max="999" value="8" style="width:90px">
+        <div class="slider-row long">
+          <span class="pill">輪數 / Rounds</span>
+          <input id="roundsSlider" class="slider" type="range" min="1" max="99" step="1">
+          <span class="val"><span id="roundsVal">8</span></span>
+        </div>
+        <div class="row" style="margin-top:6px">
+          <input id="roundsInput" type="number" min="1" max="99" value="8" style="width:90px">
           <label class="switch"><input id="autoStopChk" type="checkbox" checked>自動停止<span class="en">Auto stop</span></label>
         </div>
       </div>
       <div>
         <label>每 N 輪加入長休息<span class="en">Long Rest every N rounds</span></label>
         <div class="row">
+          <span class="pill">N</span>
           <input id="longEveryN" type="number" min="0" max="999" value="0" style="width:90px">
           <span>長休息時間 M:SS<span class="en"> Long Rest M:SS</span></span>
+        </div>
+        <div class="time-slider">
+          <div class="slider-row long">
+            <span class="pill">分鐘 / Min</span>
+            <input id="longMinSlider" class="slider" type="range" min="0" max="99" step="1">
+            <span class="val"><span id="longMinVal">00</span></span>
+          </div>
+          <div class="slider-row long">
+            <span class="pill">秒 / Sec</span>
+            <input id="longSecSlider" class="slider" type="range" min="0" max="59" step="1">
+            <span class="val"><span id="longSecVal">00</span></span>
+          </div>
+        </div>
+        <div class="row" style="margin-top:6px">
           <input id="longMin" type="number" min="0" max="99" value="00" style="width:64px">
           <span>:</span>
           <input id="longSec" type="number" min="0" max="59" value="00" style="width:64px">
@@ -97,20 +139,43 @@
   <div class="grid">
     <!-- Timer A -->
     <div class="card" id="cardA">
-      <h2>第一組（A） <span class="en">Timer A</span> <span class="badge" id="badgeA">待命<span class="en">Ready</span></span></h2>
+      <h2>第一組（A） <span class="en">Timer A</span> <span class="badge" id="badgeA">待命<span class="en"> Ready</span></span></h2>
+
       <label>時間（MM:SS）<span class="en">Duration (MM:SS)</span></label>
+      <!-- 長滑桿：分鐘 -->
+      <div class="time-slider">
+        <div class="slider-row long">
+          <span class="pill">分鐘 / Min</span>
+          <input id="minASlider" class="slider" type="range" min="0" max="99" step="1">
+          <span class="val"><span id="minAVal">00</span></span>
+        </div>
+        <div class="slider-row long">
+          <span class="pill">秒 / Sec</span>
+          <input id="secASlider" class="slider" type="range" min="0" max="59" step="1">
+          <span class="val"><span id="secAVal">20</span></span>
+        </div>
+      </div>
       <div class="row time-input">
         <input id="minA" type="number" min="0" max="99" value="00" inputmode="numeric">
         <span>：</span>
         <input id="secA" type="number" min="0" max="59" value="20" inputmode="numeric">
       </div>
+
       <div class="beep">
-        <label class="pill">嗶聲起點（剩餘秒）<span class="en">Beep when ≤ seconds left</span>
+        <label>嗶聲起點（剩餘秒）<span class="en">Beep when ≤ seconds left</span></label>
+        <div class="slider-row long">
+          <span class="pill">嗶聲 / Beep</span>
+          <input id="beepASlider" class="slider" type="range" min="1" max="10" step="1">
+          <span class="val"><span id="beepAVal">5</span>s</span>
+        </div>
+        <div class="row"><small>註：手動輸入 0 可關閉嗶聲。<span class="en">Tip: enter 0 in box below to disable beeps.</span></small></div>
+        <label class="pill">數字輸入 / Box
           <input id="beepA" type="number" min="0" max="60" value="5" style="width:64px;margin-left:8px;">
         </label>
       </div>
+
       <fieldset>
-        <legend>到時播報詞（會在「B 組」結束時被播報）<span class="en">End speech (spoken when B ends)</span></legend>
+        <legend>到時播報詞（在「B 組」結束時播）<span class="en">End speech (spoken when B ends)</span></legend>
         <div class="choices" id="choicesA">
           <label><input type="radio" name="wordA" value="開始" checked>開始<span class="en">Start</span></label>
           <label><input type="radio" name="wordA" value="運動">運動<span class="en">Workout</span></label>
@@ -118,29 +183,52 @@
           <label><input type="radio" name="wordA" value="自訂">自訂<span class="en">Custom</span></label>
         </div>
         <div class="custom-wrap">
-          <input id="customA" type="text" placeholder="自訂詞（選自訂時生效） / Custom when 'Custom' selected" />
+          <input id="customA" type="text" placeholder="自訂詞 / Custom word" />
         </div>
       </fieldset>
+
       <div class="display" id="dispA">00:20</div>
-      <div class="now" id="nowA">狀態：停止<span class="en"> Status: Stopped</span></div>
+      <div class="pill" style="font-size:16px;">狀態：<span id="nowA" style="font-weight:700;">停止</span> <span class="en">&nbsp;Status</span></div>
     </div>
 
     <!-- Timer B -->
     <div class="card" id="cardB">
-      <h2>第二組（B） <span class="en">Timer B</span> <span class="badge" id="badgeB">待命<span class="en">Ready</span></span></h2>
+      <h2>第二組（B） <span class="en">Timer B</span> <span class="badge" id="badgeB">待命<span class="en"> Ready</span></span></h2>
+
       <label>時間（MM:SS）<span class="en">Duration (MM:SS)</span></label>
+      <div class="time-slider">
+        <div class="slider-row long">
+          <span class="pill">分鐘 / Min</span>
+          <input id="minBSlider" class="slider" type="range" min="0" max="99" step="1">
+          <span class="val"><span id="minBVal">00</span></span>
+        </div>
+        <div class="slider-row long">
+          <span class="pill">秒 / Sec</span>
+          <input id="secBSlider" class="slider" type="range" min="0" max="59" step="1">
+          <span class="val"><span id="secBVal">10</span></span>
+        </div>
+      </div>
       <div class="row time-input">
         <input id="minB" type="number" min="0" max="99" value="00" inputmode="numeric">
         <span>：</span>
         <input id="secB" type="number" min="0" max="59" value="10" inputmode="numeric">
       </div>
+
       <div class="beep">
-        <label class="pill">嗶聲起點（剩餘秒）<span class="en">Beep when ≤ seconds left</span>
+        <label>嗶聲起點（剩餘秒）<span class="en">Beep when ≤ seconds left</span></label>
+        <div class="slider-row long">
+          <span class="pill">嗶聲 / Beep</span>
+          <input id="beepBSlider" class="slider" type="range" min="1" max="10" step="1">
+          <span class="val"><span id="beepBVal">5</span>s</span>
+        </div>
+        <div class="row"><small>註：手動輸入 0 可關閉嗶聲。<span class="en">Tip: enter 0 in box below to disable beeps.</span></small></div>
+        <label class="pill">數字輸入 / Box
           <input id="beepB" type="number" min="0" max="60" value="5" style="width:64px;margin-left:8px;">
         </label>
       </div>
+
       <fieldset>
-        <legend>到時播報詞（會在「A 組」結束時被播報）<span class="en">End speech (spoken when A ends)</span></legend>
+        <legend>到時播報詞（在「A 組」結束時播）<span class="en">End speech (spoken when A ends)</span></legend>
         <div class="choices" id="choicesB">
           <label><input type="radio" name="wordB" value="休息" checked>休息<span class="en">Rest</span></label>
           <label><input type="radio" name="wordB" value="暫停">暫停<span class="en">Pause</span></label>
@@ -148,11 +236,12 @@
           <label><input type="radio" name="wordB" value="自訂">自訂<span class="en">Custom</span></label>
         </div>
         <div class="custom-wrap">
-          <input id="customB" type="text" placeholder="自訂詞（選自訂時生效） / Custom when 'Custom' selected" />
+          <input id="customB" type="text" placeholder="自訂詞 / Custom word" />
         </div>
       </fieldset>
+
       <div class="display" id="dispB">00:10</div>
-      <div class="now" id="nowB">狀態：停止<span class="en"> Status: Stopped</span></div>
+      <div class="pill" style="font-size:16px;">狀態：<span id="nowB" style="font-weight:700;">停止</span> <span class="en">&nbsp;Status</span></div>
     </div>
   </div>
 
@@ -164,367 +253,246 @@
   </div>
 
   <div class="footer">
-    提醒：聲音/語音需先有一次按鈕互動才會啟用。計時使用高精度基準避免飄移；暫停/恢復保留剩餘毫秒；配方與設定皆保存在本機。
-    <span class="en">Audio/Speech require first user interaction (mobile policy). High-precision timing avoids drift; pause/resume keeps remaining ms; recipes/settings are saved locally.</span>
+    聲音/語音需先有一次按鈕互動才會啟用；高精度計時避免飄移；暫停/恢復保留剩餘毫秒；配方與設定皆保存在本機。
+    <span class="en">Audio/Speech require first user interaction. High-precision timing; pause/resume keeps remaining ms; recipes/settings saved locally.</span>
   </div>
 </div>
 
 <script>
 (() => {
-  // ===== 工具 =====
-  const clamp = (v,min,max)=>Math.max(min,Math.min(max, v|0));
-  const pad2 = n => String(n).padStart(2,'0');
-  const el = id => document.getElementById(id);
-  const save = (k,v)=>localStorage.setItem(k, JSON.stringify(v));
-  const load = (k,def)=>{ try{ const x=JSON.parse(localStorage.getItem(k)); return x ?? def; }catch{ return def; } };
+  const clamp=(v,min,max)=>Math.max(min,Math.min(max, v|0));
+  const pad2=n=>String(n).padStart(2,'0');
+  const el=id=>document.getElementById(id);
+  const save=(k,v)=>localStorage.setItem(k, JSON.stringify(v));
+  const load=(k,def)=>{ try{ const x=JSON.parse(localStorage.getItem(k)); return x ?? def; }catch{ return def; } };
 
-  // ===== 音訊（嗶聲）=====
-  let audioCtx = null, lastBeepAt = 0;
-  function ensureAudio() {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-  }
-  function beep() {
-    if (!audioCtx) return;
-    const tms = performance.now();
-    if (tms - lastBeepAt < 120) return; // 節流
-    lastBeepAt = tms;
-    const o = audioCtx.createOscillator();
-    const g = audioCtx.createGain();
-    o.type = 'square'; o.frequency.value = 1000;
-    g.gain.value = 0.0001;
+  // 音訊
+  let audioCtx=null,lastBeepAt=0;
+  function ensureAudio(){ if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)(); if(audioCtx.state==='suspended') audioCtx.resume(); }
+  function beep(){
+    if(!audioCtx) return;
+    const now=performance.now();
+    if(now-lastBeepAt<120) return;
+    lastBeepAt=now;
+    const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+    o.type='square'; o.frequency.value=1000; g.gain.value=0.0001;
     o.connect(g).connect(audioCtx.destination);
-    const t = audioCtx.currentTime;
-    g.gain.exponentialRampToValueAtTime(0.25, t + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
-    o.start(t); o.stop(t + 0.2);
+    const t=audioCtx.currentTime;
+    g.gain.exponentialRampToValueAtTime(0.25,t+0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+0.18);
+    o.start(t); o.stop(t+0.2);
   }
+  function speak(text){ if(!text) return; const u=new SpeechSynthesisUtterance(text); u.lang='zh-TW'; u.rate=1.0; u.pitch=1.0; speechSynthesis.cancel(); speechSynthesis.speak(u); }
+  function vib(p){ if(!el('vibrateChk').checked) return; if(navigator.vibrate) navigator.vibrate(p); }
 
-  // ===== 語音 =====
-  function speak(text) {
-    if (!text) return;
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'zh-TW'; u.rate = 1.0; u.pitch = 1.0;
-    window.speechSynthesis.cancel(); window.speechSynthesis.speak(u);
+  // DOM
+  const minA=el('minA'), secA=el('secA'), dispA=el('dispA'), nowA=el('nowA'), beepA=el('beepA'), badgeA=el('badgeA');
+  const minB=el('minB'), secB=el('secB'), dispB=el('dispB'), nowB=el('nowB'), beepB=el('beepB'), badgeB=el('badgeB');
+  const customA=el('customA'), customB=el('customB');
+  const startBtn=el('startBtn'), pauseBtn=el('pauseBtn'), resetBtn=el('resetBtn'), who=el('who');
+  const roundsDoneEl=el('roundsDone'), roundsGoalEl=el('roundsGoal');
+  const roundsInput=el('roundsInput'), autoStopChk=el('autoStopChk');
+  const longEveryN=el('longEveryN'), longMin=el('longMin'), longSec=el('longSec');
+
+  // 滑桿 DOM
+  const minASlider=el('minASlider'), secASlider=el('secASlider'), minAVal=el('minAVal'), secAVal=el('secAVal');
+  const minBSlider=el('minBSlider'), secBSlider=el('secBSlider'), minBVal=el('minBVal'), secBVal=el('secBVal');
+  const beepASlider=el('beepASlider'), beepAVal=el('beepAVal');
+  const beepBSlider=el('beepBSlider'), beepBVal=el('beepBVal');
+  const roundsSlider=el('roundsSlider'), roundsVal=el('roundsVal');
+  const longMinSlider=el('longMinSlider'), longSecSlider=el('longSecSlider'), longMinVal=el('longMinVal'), longSecVal=el('longSecVal');
+
+  // 配方
+  const recipeSelect=el('recipeSelect'), recipeName=el('recipeName');
+  const saveRecipeBtn=el('saveRecipe'), delRecipeBtn=el('deleteRecipe'), startRecipeBtn=el('startRecipe');
+
+  // 共同邏輯
+  function selectedWord(group){
+    const name=group==='A'?'wordA':'wordB';
+    const val=(document.querySelector(`input[name="${name}"]:checked`)||{}).value;
+    if(val==='自訂') return (group==='A'?customA.value:customB.value)||'完成';
+    return val||'完成';
   }
-
-  // ===== 震動 =====
-  function vib(pattern) {
-    if (!el('vibrateChk').checked) return;
-    if (navigator.vibrate) navigator.vibrate(pattern);
-  }
-
-  // ===== DOM =====
-  const minA = el('minA'), secA = el('secA'), dispA = el('dispA'), nowA = el('nowA'), beepA = el('beepA'), badgeA = el('badgeA');
-  const minB = el('minB'), secB = el('secB'), dispB = el('dispB'), nowB = el('nowB'), beepB = el('beepB'), badgeB = el('badgeB');
-  const customA = el('customA'), customB = el('customB');
-  const startBtn = el('startBtn'), pauseBtn = el('pauseBtn'), resetBtn = el('resetBtn'), who = el('who');
-  const roundsDoneEl = el('roundsDone'), roundsGoalEl = el('roundsGoal');
-  const vibrateChk = el('vibrateChk');
-
-  const roundsInput = el('roundsInput'), autoStopChk = el('autoStopChk');
-  const longEveryN = el('longEveryN'), longMin = el('longMin'), longSec = el('longSec');
-
-  const recipeSelect = el('recipeSelect'), recipeName = el('recipeName');
-  const saveRecipeBtn = el('saveRecipe'), delRecipeBtn = el('deleteRecipe'), startRecipeBtn = el('startRecipe');
-
-  // ===== 選詞 =====
-  function selectedWord(group) {
-    const name = group === 'A' ? 'wordA' : 'wordB';
-    const val = (document.querySelector(`input[name="${name}"]:checked`)||{}).value;
-    if (val === '自訂') {
-      const t = group === 'A' ? customA.value.trim() : customB.value.trim();
-      return t || '完成';
-    }
-    return val || '完成';
-  }
-
-  // ===== 取秒數 =====
-  function totalSeconds(group) {
-    if (group === 'A') {
-      const m = clamp(minA.value, 0, 99); const s = clamp(secA.value, 0, 59);
-      return m*60 + s;
-    } else if (group === 'B') {
-      const m = clamp(minB.value, 0, 99); const s = clamp(secB.value, 0, 59);
-      return m*60 + s;
-    } else if (group === 'LONG') {
-      const m = clamp(longMin.value, 0, 99); const s = clamp(longSec.value, 0, 59);
-      return m*60 + s;
-    }
+  function totalSeconds(group){
+    if(group==='A'){ return clamp(minA.value,0,99)*60 + clamp(secA.value,0,59); }
+    if(group==='B'){ return clamp(minB.value,0,99)*60 + clamp(secB.value,0,59); }
+    if(group==='LONG'){ return clamp(longMin.value,0,99)*60 + clamp(longSec.value,0,59); }
     return 0;
   }
-  function beepStart(group) {
-    return clamp(group==='A' ? beepA.value : beepB.value, 0, 60);
+  function beepStart(group){ return clamp(group==='A'?beepA.value:beepB.value,0,60); }
+  function setDisplay(group,secs){
+    const mm=Math.floor(secs/60), ss=secs%60;
+    (group==='A'?dispA:dispB).textContent=`${pad2(mm)}:${pad2(ss)}`;
   }
-  function setDisplay(group, secs) {
-    const mm = Math.floor(secs/60), ss = secs%60;
-    (group==='A'?dispA:dispB).textContent = `${pad2(mm)}:${pad2(ss)}`;
+  function setState(group,text,active=false){
+    (group==='A'?nowA:nowB).textContent=text.replace(' / ',''); // 顯示中文為主
+    (group==='A'?badgeA:badgeB).textContent=active?'計時中 / Running':(text==='停止 / Stopped'?'待命 / Ready':text);
   }
-  function setState(group, text, active=false) {
-    (group==='A'?nowA:nowB).textContent = `狀態：${text}  /  Status: ${text}`;
-    (group==='A'?badgeA:badgeB).textContent = active ? '計時中 / Running' : (text==='停止'?'待命 / Ready':text+' / '+text);
-  }
+  const fix2=inp=>{ inp.addEventListener('change',()=>{ let v=clamp(inp.value, +inp.min, +inp.max); inp.value=pad2(v); saveAll(); }); };
 
-  // 兩位數輸入修正＋儲存
-  const fix2 = (inp)=>{ inp.addEventListener('change',()=>{ let v=clamp(inp.value, +inp.min, +inp.max); inp.value = pad2(v); saveAll(); });};
   [minA,secA,minB,secB,longMin,longSec].forEach(fix2);
-  [minA,secA,minB,secB,beepA,beepB,customA,customB,roundsInput,longEveryN,longMin,longSec].forEach(e => e.addEventListener('input', saveAll));
-  document.querySelectorAll('input[name="wordA"],input[name="wordB"]').forEach(r => r.addEventListener('change', saveAll));
-  vibrateChk.addEventListener('change', saveAll);
+  [minA,secA,minB,secB,beepA,beepB,customA,customB,roundsInput,longEveryN,longMin,longSec].forEach(e=>e.addEventListener('input', saveAll));
+  document.querySelectorAll('input[name="wordA"],input[name="wordB"]').forEach(r=>r.addEventListener('change', saveAll));
   autoStopChk.addEventListener('change', saveAll);
 
-  // ===== 計時核心（加入輪數與長休息）=====
-  let timer = {
-    current: null,     // 'A' | 'B' | 'LONG'
-    running: false,
-    endTs: 0,
-    remainMs: 0,
-    rafId: null,
-    lastWhole: null,
-    roundsDone: 0,     // 完成的 A→B 輪數
-    roundsGoal: Infinity, // 目標輪數
-    longEvery: 0,      // 每 N 輪插入長休息
-  };
-
+  // 計時核心
+  let timer={ current:null, running:false, endTs:0, remainMs:0, rafId:null, lastWhole:null, roundsDone:0, roundsGoal:Infinity, longEvery:0 };
   function otherGroup(g){ return g==='A'?'B':'A'; }
-
-  function syncGoal() {
-    timer.roundsGoal = autoStopChk.checked ? clamp(roundsInput.value, 1, 999) : Infinity;
-    roundsGoalEl.textContent = isFinite(timer.roundsGoal) ? timer.roundsGoal : '∞';
-  }
-
-  function startCycle(fromRecipe=false) {
-    ensureAudio(); syncGoal();
-    if (timer.running) return;
-    timer.roundsDone = 0; roundsDoneEl.textContent = '0';
-    timer.longEvery = clamp(longEveryN.value, 0, 999);
-    timer.current = 'A';
-    who.textContent = 'A 組 / Timer A';
-    setState('A','啟動 / Start', true);
-    setState('B','待命 / Ready', false);
-    runTimerFor('A', totalSeconds('A'));
-    startBtn.disabled = true; pauseBtn.disabled = false;
-  }
-
-  function maybeInsertLongRest(nextGroupBefore) {
-    // 每完成一輪（B 結束時 +1 輪），檢查是否需要長休息
-    if (timer.longEvery > 0 && timer.roundsDone > 0 && (timer.roundsDone % timer.longEvery === 0)) {
-      const lr = totalSeconds('LONG');
-      if (lr > 0) {
-        timer.current = 'LONG';
-        who.textContent = '長休息 / Long Rest';
-        runTimerFor('LONG', lr, /*noSwapSpeech*/ true); // 長休息不做對調播報
-        return true;
-      }
+  function syncGoal(){ timer.roundsGoal=autoStopChk.checked?clamp(roundsInput.value,1,99):Infinity; roundsGoalEl.textContent=isFinite(timer.roundsGoal)?timer.roundsGoal:'∞'; }
+  function startCycle(){ ensureAudio(); syncGoal(); if(timer.running) return;
+    timer.roundsDone=0; roundsDoneEl.textContent='0'; timer.longEvery=clamp(longEveryN.value,0,999);
+    timer.current='A'; who.textContent='A 組 / Timer A'; setState('A','啟動 / Start',true); setState('B','待命 / Ready',false);
+    runTimerFor('A', totalSeconds('A')); startBtn.disabled=true; pauseBtn.disabled=false; }
+  function maybeInsertLongRest(){ if(timer.longEvery>0 && timer.roundsDone>0 && (timer.roundsDone%timer.longEvery===0)){
+      const lr=totalSeconds('LONG'); if(lr>0){ timer.current='LONG'; who.textContent='長休息 / Long Rest'; runTimerFor('LONG', lr, true); return true; } } return false; }
+  function switchNext(){ if(timer.current==='LONG'){ timer.current='A'; who.textContent='A 組 / Timer A'; runTimerFor('A', totalSeconds('A')); return; }
+    timer.current=otherGroup(timer.current); who.textContent=(timer.current==='A'?'A 組 / Timer A':'B 組 / Timer B'); runTimerFor(timer.current, totalSeconds(timer.current)); }
+  function runTimerFor(group,secs,noSwapSpeech=false){
+    if(secs<=0){
+      if(group==='LONG'){ switchNext(true); return; }
+      if(!noSwapSpeech){ const tgt=otherGroup(group); speak(selectedWord(tgt)); vib([50,70,50]); }
+      if(group==='B'){ timer.roundsDone++; roundsDoneEl.textContent=String(timer.roundsDone); if(timer.roundsDone>=timer.roundsGoal){ stopAll(); return; } if(maybeInsertLongRest()) return; }
+      switchNext(); return;
     }
-    return false;
-  }
-
-  function switchNext(afterLong=false) {
-    if (timer.current === 'LONG') {
-      // 長休息後回到 A
-      timer.current = 'A';
-      who.textContent = 'A 組 / Timer A';
-      runTimerFor('A', totalSeconds('A'));
-      return;
-    }
-    // A ↔ B 正常切換
-    timer.current = otherGroup(timer.current);
-    who.textContent = (timer.current==='A'?'A 組 / Timer A':'B 組 / Timer B');
-    const secs = totalSeconds(timer.current);
-    runTimerFor(timer.current, secs);
-  }
-
-  function runTimerFor(group, secs, noSwapSpeech=false) {
-    // 0 秒防呆：直接觸發結束行為
-    if (secs <= 0) {
-      if (group === 'LONG') { switchNext(true); return; }
-      // 對調播報：A 結束播 B 的詞；B 結束播 A 的詞
-      if (!noSwapSpeech) {
-        const tgt = otherGroup(group);
-        speak(selectedWord(tgt));
-        vib([50,70,50]);
-      }
-      if (group === 'B') {
-        // B 結束代表一輪完成
-        timer.roundsDone++; roundsDoneEl.textContent = String(timer.roundsDone);
-        // 若達標自動停止
-        if (timer.roundsDone >= timer.roundsGoal) { stopAll(); return; }
-        // 每 N 輪長休息
-        if (maybeInsertLongRest('A')) return;
-      }
-      switchNext();
-      return;
-    }
-
-    timer.running = true;
-    timer.lastWhole = null;
-    timer.endTs = performance.now() + secs*1000;
-    timer.remainMs = secs*1000;
-
-    if (group==='A'){ badgeA.textContent = '計時中 / Running'; badgeB.textContent = '待命 / Ready'; }
-    else if (group==='B'){ badgeB.textContent = '計時中 / Running'; badgeA.textContent = '待命 / Ready'; }
-    setState(group, '計時中 / Running', true);
-    if (group!=='A') setState('A', group==='A'?'計時中 / Running':'待命 / Ready', group==='A');
-    if (group!=='B') setState('B', group==='B'?'計時中 / Running':'待命 / Ready', group==='B');
-
+    timer.running=true; timer.lastWhole=null; timer.endTs=performance.now()+secs*1000; timer.remainMs=secs*1000;
+    if(group==='A'){ badgeA.textContent='計時中 / Running'; badgeB.textContent='待命 / Ready'; }
+    else if(group==='B'){ badgeB.textContent='計時中 / Running'; badgeA.textContent='待命 / Ready'; }
+    setState(group,'計時中 / Running',true);
     cancelAnimationFrame(timer.rafId);
     tick(noSwapSpeech);
   }
-
-  function tick(noSwapSpeech=false) {
-    if (!timer.running) return;
-    const now = performance.now();
-    let remain = Math.max(0, timer.endTs - now);
-    timer.remainMs = remain;
-
-    const whole = Math.ceil(remain / 1000);
-    const group = timer.current;
-    if (group==='A' || group==='B') setDisplay(group, Math.max(0, whole));
-
-    // 嗶聲：當剩餘整秒 <= 設定，且整秒數有變化
-    if ((group==='A'||group==='B') && timer.lastWhole !== null && whole !== timer.lastWhole) {
-      const threshold = beepStart(group);
-      if (whole > 0 && whole <= threshold) { beep(); vib(25); }
+  function tick(noSwapSpeech=false){
+    if(!timer.running) return;
+    const now=performance.now(); let remain=Math.max(0, timer.endTs-now); timer.remainMs=remain;
+    const whole=Math.ceil(remain/1000), group=timer.current;
+    if(group==='A'||group==='B') setDisplay(group, Math.max(0,whole));
+    if((group==='A'||group==='B') && timer.lastWhole!==null && whole!==timer.lastWhole){
+      const threshold=beepStart(group);
+      if(whole>0 && whole<=threshold){ beep(); vib(25); }
     }
-    timer.lastWhole = whole;
-
-    if (remain <= 0) {
-      if (group === 'LONG') { switchNext(true); return; }
-      // 到點：對調播報 + 切換
-      if (!noSwapSpeech) {
-        const tgt = otherGroup(group);
-        speak(selectedWord(tgt));
-        vib([60,80,60]);
-      }
-      if (group === 'B') {
-        timer.roundsDone++; roundsDoneEl.textContent = String(timer.roundsDone);
-        if (timer.roundsDone >= timer.roundsGoal) { stopAll(); return; }
-        if (maybeInsertLongRest('A')) return;
-      }
-      switchNext();
-      return;
+    timer.lastWhole=whole;
+    if(remain<=0){
+      if(group==='LONG'){ switchNext(true); return; }
+      if(!noSwapSpeech){ const tgt=otherGroup(group); speak(selectedWord(tgt)); vib([60,80,60]); }
+      if(group==='B'){ timer.roundsDone++; roundsDoneEl.textContent=String(timer.roundsDone);
+        if(timer.roundsDone>=timer.roundsGoal){ stopAll(); return; }
+        if(maybeInsertLongRest()) return; }
+      switchNext(); return;
     }
-    timer.rafId = requestAnimationFrame(()=>tick(noSwapSpeech));
+    timer.rafId=requestAnimationFrame(()=>tick(noSwapSpeech));
   }
+  function pause(){ if(!timer.running) return; timer.running=false; cancelAnimationFrame(timer.rafId); setState(timer.current,'已暫停 / Paused',false); pauseBtn.textContent='繼續 / Resume'; }
+  function resume(){ if(timer.running) return; ensureAudio(); timer.running=true; timer.endTs=performance.now()+timer.remainMs; setState(timer.current,'計時中 / Running',true); pauseBtn.textContent='暫停 / Pause'; tick(); }
+  function stopAll(){ timer.running=false; cancelAnimationFrame(timer.rafId); who.textContent='完成 / Done';
+    startBtn.disabled=false; pauseBtn.disabled=true; pauseBtn.textContent='暫停 / Pause'; speechSynthesis.cancel();
+    badgeA.textContent='待命 / Ready'; badgeB.textContent='待命 / Ready'; setState('A','停止 / Stopped',false); setState('B','停止 / Stopped',false); }
+  function resetAll(){ timer.running=false; cancelAnimationFrame(timer.rafId); timer.current=null; timer.remainMs=0; timer.roundsDone=0; roundsDoneEl.textContent='0';
+    who.textContent='—'; setDisplay('A', totalSeconds('A')); setDisplay('B', totalSeconds('B'));
+    setState('A','停止 / Stopped',false); setState('B','停止 / Stopped',false);
+    badgeA.textContent='待命 / Ready'; badgeB.textContent='待命 / Ready';
+    startBtn.disabled=false; pauseBtn.disabled=true; pauseBtn.textContent='暫停 / Pause'; speechSynthesis.cancel(); syncGoal(); }
 
-  function pause() {
-    if (!timer.running) return;
-    timer.running = false;
-    cancelAnimationFrame(timer.rafId);
-    if (timer.current==='A'||timer.current==='B') setState(timer.current, '已暫停 / Paused', false);
-    pauseBtn.textContent = '繼續 / Resume';
-  }
-  function resume() {
-    if (timer.running) return;
-    ensureAudio();
-    timer.running = true;
-    timer.endTs = performance.now() + timer.remainMs;
-    if (timer.current==='A'||timer.current==='B') setState(timer.current, '計時中 / Running', true);
-    pauseBtn.textContent = '暫停 / Pause';
-    tick();
-  }
-
-  function stopAll() {
-    timer.running = false;
-    cancelAnimationFrame(timer.rafId);
-    who.textContent = '完成 / Done';
-    startBtn.disabled = false;
-    pauseBtn.disabled = true;
-    pauseBtn.textContent = '暫停 / Pause';
-    window.speechSynthesis.cancel();
-    // 標籤回復
-    badgeA.textContent = '待命 / Ready';
-    badgeB.textContent = '待命 / Ready';
-    setState('A','停止 / Stopped',false);
-    setState('B','停止 / Stopped',false);
-  }
-
-  function resetAll() {
-    timer.running = false;
-    cancelAnimationFrame(timer.rafId);
-    timer.current = null;
-    timer.remainMs = 0;
-    timer.roundsDone = 0; roundsDoneEl.textContent = '0';
-    who.textContent = '—';
-    setDisplay('A', totalSeconds('A'));
-    setDisplay('B', totalSeconds('B'));
-    setState('A','停止 / Stopped',false);
-    setState('B','停止 / Stopped',false);
-    badgeA.textContent = '待命 / Ready'; badgeB.textContent = '待命 / Ready';
-    startBtn.disabled = false; pauseBtn.disabled = true;
-    pauseBtn.textContent = '暫停 / Pause';
-    window.speechSynthesis.cancel();
-    syncGoal();
-  }
-
-  // 事件
-  startBtn.addEventListener('click', ()=>startCycle(false));
-  pauseBtn.addEventListener('click', () => { if (timer.running) pause(); else resume(); });
+  startBtn.addEventListener('click', startCycle);
+  pauseBtn.addEventListener('click', ()=>{ if(timer.running) pause(); else resume(); });
   resetBtn.addEventListener('click', resetAll);
+  document.addEventListener('visibilitychange', ()=>{ if(document.hidden && timer.running) pause(); });
 
-  // 即時顯示
-  function bindLiveDisplay(mEl, sEl, dEl) {
-    const upd = () => {
-      const secs = clamp(mEl.value,0,99)*60 + clamp(sEl.value,0,59);
-      dEl.textContent = `${pad2(Math.floor(secs/60))}:${pad2(secs%60)}`;
-    };
-    [mEl,sEl].forEach(e=>e.addEventListener('input',upd));
-    upd();
+  // 雙向同步：滑桿 <-> 數字框
+  function bindSliderPair(numEl, sliderEl, valEl, opts={pad:true}){
+    const syncFromNum=()=>{ const v=clamp(numEl.value, +numEl.min, +numEl.max); sliderEl.value=v; if(valEl) valEl.textContent=opts.pad?pad2(v):v; saveAll(); };
+    const syncFromSlider=()=>{ const v=+sliderEl.value; numEl.value=opts.pad?pad2(v):v; if(valEl) valEl.textContent=opts.pad?pad2(v):v; saveAll(); updateDisplays(); };
+    numEl.addEventListener('input', syncFromNum);
+    sliderEl.addEventListener('input', syncFromSlider);
+    // 初始化
+    sliderEl.value=clamp(numEl.value, +sliderEl.min, +sliderEl.max);
+    if(valEl) valEl.textContent=opts.pad?pad2(sliderEl.value):sliderEl.value;
+  }
+  function updateDisplays(){ setDisplay('A', totalSeconds('A')); setDisplay('B', totalSeconds('B')); }
+
+  bindSliderPair(minA, minASlider, minAVal, {pad:true});
+  bindSliderPair(secA, secASlider, secAVal, {pad:false});
+  bindSliderPair(minB, minBSlider, minBVal, {pad:true});
+  bindSliderPair(secB, secBSlider, secBVal, {pad:false});
+
+  // 嗶聲滑桿：1–10秒；數字框允許0（關閉）
+  function bindBeepPair(numEl, sliderEl, valEl){
+    const syncFromNum=()=>{ let v=clamp(numEl.value, 0, 60); numEl.value=v; if(v===0){ /*允許0*/ } else if(v<1){ v=1; numEl.value=1; }
+      sliderEl.value=clamp(v, +sliderEl.min, +sliderEl.max); valEl.textContent=sliderEl.value; saveAll(); };
+    const syncFromSlider=()=>{ const v=+sliderEl.value; numEl.value=v; valEl.textContent=v; saveAll(); };
+    numEl.addEventListener('input', syncFromNum);
+    sliderEl.addEventListener('input', syncFromSlider);
+    sliderEl.value=clamp(numEl.value, +sliderEl.min, +sliderEl.max); valEl.textContent=sliderEl.value;
+  }
+  bindBeepPair(beepA, beepASlider, beepAVal);
+  bindBeepPair(beepB, beepBSlider, beepBVal);
+
+  // 輪數滑桿：1–99
+  function bindRounds(){
+    const syncFromNum=()=>{ let v=clamp(roundsInput.value,1,99); roundsInput.value=v; roundsSlider.value=v; roundsVal.textContent=v; saveAll(); syncGoal(); };
+    const syncFromSlider=()=>{ let v=+roundsSlider.value; roundsInput.value=v; roundsVal.textContent=v; saveAll(); syncGoal(); };
+    roundsInput.addEventListener('input', syncFromNum);
+    roundsSlider.addEventListener('input', syncFromSlider);
+    roundsSlider.value=clamp(roundsInput.value,1,99); roundsVal.textContent=roundsSlider.value;
+  }
+  bindRounds();
+
+  // 長休滑桿
+  bindSliderPair(longMin, longMinSlider, longMinVal, {pad:true});
+  bindSliderPair(longSec, longSecSlider, longSecVal, {pad:true});
+
+  // 即時顯示更新（數字框也觸發）
+  function bindLiveDisplay(mEl, sEl, dEl){
+    const upd=()=>{ const secs=clamp(mEl.value,0,99)*60 + clamp(sEl.value,0,59); dEl.textContent=`${pad2(Math.floor(secs/60))}:${pad2(secs%60)}`; };
+    [mEl,sEl].forEach(e=>e.addEventListener('input',upd)); upd();
   }
   bindLiveDisplay(minA, secA, dispA);
   bindLiveDisplay(minB, secB, dispB);
 
-  document.addEventListener('visibilitychange', () => { if (document.hidden && timer.running) pause(); });
-
-  // ===== 儲存一般設定 =====
+  // 儲存/載入設定
   function saveAll(){
-    const data = {
+    const data={
       minA:minA.value, secA:secA.value, beepA:beepA.value,
       minB:minB.value, secB:secB.value, beepB:beepB.value,
       wordA:(document.querySelector('input[name="wordA"]:checked')||{}).value,
       wordB:(document.querySelector('input[name="wordB"]:checked')||{}).value,
       customA:customA.value, customB:customB.value,
-      vibrate:vibrateChk.checked,
+      vibrate:el('vibrateChk').checked,
       rounds:roundsInput.value, autoStop:autoStopChk.checked,
       longEvery:longEveryN.value, longMin:longMin.value, longSec:longSec.value
     };
     save('dualTimersRecipes_settings', data);
-    syncGoal();
   }
   function loadAll(){
-    const d = load('dualTimersRecipes_settings', null);
-    if (!d) { syncGoal(); return; }
-    minA.value=d.minA??minA.value; secA.value=d.secA??secA.value; beepA.value=d.beepA??beepA.value;
-    minB.value=d.minB??minB.value; secB.value=d.secB??secB.value; beepB.value=d.beepB??beepB.value;
-    ['A','B'].forEach(g=>{
-      const v = d['word'+g];
-      if (v) { const r = document.querySelector(`input[name="word${g}"][value="${v}"]`); if (r) r.checked = true; }
-    });
+    const d=load('dualTimersRecipes_settings', null);
+    if(!d){ syncGoal(); return; }
+    minA.value=d.minA??'00'; secA.value=d.secA??'20'; beepA.value=d.beepA??'5';
+    minB.value=d.minB??'00'; secB.value=d.secB??'10'; beepB.value=d.beepB??'5';
+    ['A','B'].forEach(g=>{ const v=d['word'+g]; if(v){ const r=document.querySelector(`input[name="word${g}"][value="${v}"]`); if(r) r.checked=true; }});
     customA.value=d.customA??''; customB.value=d.customB??'';
-    vibrateChk.checked=!!d.vibrate;
-    roundsInput.value=d.rounds??roundsInput.value; autoStopChk.checked=!!d.autoStop;
+    el('vibrateChk').checked=!!d.vibrate;
+    roundsInput.value=d.rounds??'8'; autoStopChk.checked=!!d.autoStop;
     longEveryN.value=d.longEvery??0; longMin.value=d.longMin??'00'; longSec.value=d.longSec??'00';
-    setDisplay('A', totalSeconds('A')); setDisplay('B', totalSeconds('B'));
-    syncGoal();
+    // 初始化滑桿視圖與顯示
+    minASlider.value=clamp(minA.value,0,99); minAVal.textContent=pad2(minASlider.value);
+    secASlider.value=clamp(secA.value,0,59); secAVal.textContent=secASlider.value;
+    minBSlider.value=clamp(minB.value,0,99); minBVal.textContent=pad2(minBSlider.value);
+    secBSlider.value=clamp(secB.value,0,59); secBVal.textContent=secBSlider.value;
+    beepASlider.value=clamp(beepA.value||5,1,10); beepAVal.textContent=beepASlider.value;
+    beepBSlider.value=clamp(beepB.value||5,1,10); beepBVal.textContent=beepBSlider.value;
+    roundsSlider.value=clamp(roundsInput.value,1,99); roundsVal.textContent=roundsSlider.value;
+    longMinSlider.value=clamp(longMin.value,0,99); longMinVal.textContent=pad2(longMinSlider.value);
+    longSecSlider.value=clamp(longSec.value,0,59); longSecVal.textContent=pad2(longSecSlider.value);
+    updateDisplays(); syncGoal();
   }
   loadAll();
 
-  // ===== 配方：資料格式與 CRUD =====
-  // Recipe schema（全部必要欄位；語義清楚好匯出）：
-  // {
-  //   name: "Tabata 20/10 x8",
-  //   A:{m:0,s:20,beep:5,word:"開始",custom:""},
-  //   B:{m:0,s:10,beep:5,word:"休息",custom:""},
-  //   rounds:8, autoStop:true,
-  //   longEvery:0, long:{m:0,s:0}
-  // }
+  // 配方 CRUD（沿用前版）
   function getCurrentAsRecipe(nameFallback='Untitled'){
     return {
       name: recipeName.value.trim() || nameFallback,
       A:{m:clamp(minA.value,0,99), s:clamp(secA.value,0,59), beep:clamp(beepA.value,0,60), word:(document.querySelector('input[name="wordA"]:checked')||{}).value||'開始', custom:customA.value||''},
       B:{m:clamp(minB.value,0,99), s:clamp(secB.value,0,59), beep:clamp(beepB.value,0,60), word:(document.querySelector('input[name="wordB"]:checked')||{}).value||'休息', custom:customB.value||''},
-      rounds: clamp(roundsInput.value,1,999),
+      rounds: clamp(roundsInput.value,1,99),
       autoStop: !!autoStopChk.checked,
       longEvery: clamp(longEveryN.value,0,999),
       long:{m:clamp(longMin.value,0,99), s:clamp(longSec.value,0,59)}
@@ -533,69 +501,44 @@
   function applyRecipe(r){
     minA.value=pad2(r.A.m); secA.value=pad2(r.A.s); beepA.value=r.A.beep;
     minB.value=pad2(r.B.m); secB.value=pad2(r.B.s); beepB.value=r.B.beep;
-    const rA = document.querySelector(`input[name="wordA"][value="${r.A.word}"]`);
-    const rB = document.querySelector(`input[name="wordB"][value="${r.B.word}"]`);
-    if (rA) rA.checked = true; else { const customRadio = document.querySelector(`input[name="wordA"][value="自訂"]`); customRadio.checked = true; }
-    if (rB) rB.checked = true; else { const customRadio = document.querySelector(`input[name="wordB"][value="自訂"]`); customRadio.checked = true; }
-    customA.value = r.A.custom||''; customB.value = r.B.custom||'';
+    const rA=document.querySelector(`input[name="wordA"][value="${r.A.word}"]`);
+    const rB=document.querySelector(`input[name="wordB"][value="${r.B.word}"]`);
+    if(rA) rA.checked=true; else (document.querySelector(`input[name="wordA"][value="自訂"]`).checked=true);
+    if(rB) rB.checked=true; else (document.querySelector(`input[name="wordB"][value="自訂"]`).checked=true);
+    customA.value=r.A.custom||''; customB.value=r.B.custom||'';
     roundsInput.value=r.rounds; autoStopChk.checked=!!r.autoStop;
     longEveryN.value=r.longEvery||0; longMin.value=pad2(r.long?.m||0); longSec.value=pad2(r.long?.s||0);
-    setDisplay('A', totalSeconds('A')); setDisplay('B', totalSeconds('B'));
-    recipeName.value = r.name || '';
-    saveAll();
+    // 同步滑桿與顯示
+    loadAll(); recipeName.value=r.name||'';
   }
-  function loadRecipes(){
-    return load('dualTimersRecipes_list', []);
-  }
-  function saveRecipes(list){
-    save('dualTimersRecipes_list', list);
-  }
+  function loadRecipes(){ return load('dualTimersRecipes_list', []); }
+  function saveRecipes(list){ save('dualTimersRecipes_list', list); }
   function refreshRecipeSelect(){
-    const list = loadRecipes();
-    recipeSelect.innerHTML = '';
-    if (list.length===0){
-      const opt = document.createElement('option');
-      opt.value = ''; opt.textContent = '（無配方） / (No recipes)';
-      recipeSelect.appendChild(opt);
-      return;
-    }
-    list.forEach((r,i)=>{
-      const opt = document.createElement('option');
-      opt.value = String(i); opt.textContent = r.name;
-      recipeSelect.appendChild(opt);
-    });
+    const list=loadRecipes(); recipeSelect.innerHTML='';
+    if(list.length===0){ const opt=document.createElement('option'); opt.value=''; opt.textContent='（無配方） / (No recipes)'; recipeSelect.appendChild(opt); return; }
+    list.forEach((r,i)=>{ const opt=document.createElement('option'); opt.value=String(i); opt.textContent=r.name; recipeSelect.appendChild(opt); });
   }
   function saveOrOverwriteRecipe(){
-    const now = getCurrentAsRecipe('Untitled');
-    const list = loadRecipes();
-    // 若選單有選中，覆蓋；否則新增
-    const idx = recipeSelect.value ? parseInt(recipeSelect.value,10) : -1;
-    if (idx>=0 && list[idx]) list[idx] = now; else list.push(now);
+    const now=getCurrentAsRecipe('Untitled'); const list=loadRecipes();
+    const idx=recipeSelect.value?parseInt(recipeSelect.value,10):-1;
+    if(idx>=0 && list[idx]) list[idx]=now; else list.push(now);
     saveRecipes(list); refreshRecipeSelect();
-    // 指到剛剛的
-    const newIndex = list.findIndex(r=>r.name===now.name);
-    recipeSelect.value = String(newIndex >=0 ? newIndex : 0);
+    const newIndex=list.findIndex(r=>r.name===now.name); recipeSelect.value=String(newIndex>=0?newIndex:0);
   }
   function deleteRecipe(){
-    const list = loadRecipes();
-    const idx = parseInt(recipeSelect.value||'-1',10);
-    if (isNaN(idx) || !list[idx]) return;
-    list.splice(idx,1); saveRecipes(list); refreshRecipeSelect();
-    recipeName.value='';
+    const list=loadRecipes(); const idx=parseInt(recipeSelect.value||'-1',10); if(isNaN(idx)||!list[idx]) return;
+    list.splice(idx,1); saveRecipes(list); refreshRecipeSelect(); recipeName.value='';
   }
-  recipeSelect.addEventListener('change', ()=>{
-    const list = loadRecipes();
-    const idx = parseInt(recipeSelect.value||'-1',10);
-    if (!isNaN(idx) && list[idx]) applyRecipe(list[idx]);
-  });
+  recipeSelect.addEventListener('change', ()=>{ const list=loadRecipes(); const idx=parseInt(recipeSelect.value||'-1',10); if(!isNaN(idx)&&list[idx]) applyRecipe(list[idx]); });
   saveRecipeBtn.addEventListener('click', saveOrOverwriteRecipe);
   delRecipeBtn.addEventListener('click', deleteRecipe);
-  startRecipeBtn.addEventListener('click', ()=>{ const list=loadRecipes(); const idx=parseInt(recipeSelect.value||'-1',10); if(!isNaN(idx)&&list[idx]) applyRecipe(list[idx]); startCycle(true); });
+  startRecipeBtn.addEventListener('click', ()=>{ const list=loadRecipes(); const idx=parseInt(recipeSelect.value||'-1',10); if(!isNaN(idx)&&list[idx]) applyRecipe(list[idx]); startCycle(); });
 
-  // 預設放幾個常用配方（只在首次安裝時注入）
+  // 預設配方（首次）
   (function seedDefaults(){
-    if (load('dualTimersRecipes_seeded', false)) { refreshRecipeSelect(); return; }
-    const defaults = [
+    refreshRecipeSelect();
+    if(load('dualTimersRecipes_seeded', false)) return;
+    const defaults=[
       { name:'Tabata 20/10 × 8',
         A:{m:0,s:20,beep:5,word:'開始',custom:''},
         B:{m:0,s:10,beep:5,word:'休息',custom:''},
@@ -612,12 +555,9 @@
         rounds:4, autoStop:true, longEvery:4, long:{m:10,s:0}
       }
     ];
-    saveRecipes(defaults); save('dualTimersRecipes_seeded', true);
-    refreshRecipeSelect();
-    // 自動載入第 1 個
-    recipeSelect.value = '0'; applyRecipe(defaults[0]);
+    saveRecipes(defaults); save('dualTimersRecipes_seeded', true); refreshRecipeSelect();
+    recipeSelect.value='0'; applyRecipe(defaults[0]);
   })();
-
 })();
 </script>
 </body>
