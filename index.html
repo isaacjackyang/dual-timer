@@ -535,30 +535,79 @@
   startRecipeBtn.addEventListener('click', ()=>{ const list=loadRecipes(); const idx=parseInt(recipeSelect.value||'-1',10); if(!isNaN(idx)&&list[idx]) applyRecipe(list[idx]); startCycle(); });
 
   // 預設配方（首次）
-  (function seedDefaults(){
+(function seedDefaultsV2(){
+  refreshRecipeSelect();
+
+  // 版本化的種子：v2
+  const SEED_KEY = 'dualTimersRecipes_seedVersion';
+  const current = load(SEED_KEY, 0);
+  const list = load('dualTimersRecipes_list', []);
+
+  // v2 預設配方（中英雙語名稱）
+  const v2Defaults = [
+    {
+      // 1) Archery SPT（拉弓等長訓練）：30s 拉弓 / 30s 休息 × 12， 每 6 輪長休 2:00
+      name: 'Archery SPT 30/30 × 12（拉弓等長） / Archery SPT 30/30 × 12',
+      A:{m:0,s:30,beep:5,word:'自訂',custom:'拉弓 / Draw'},
+      B:{m:0,s:30,beep:5,word:'休息',custom:''},
+      rounds:12, autoStop:true,
+      longEvery:6, long:{m:2,s:0}
+    },
+    {
+      // 2) Tabata
+      name: 'Tabata 20/10 × 8 / Tabata 20/10 × 8',
+      A:{m:0,s:20,beep:5,word:'開始',custom:''},
+      B:{m:0,s:10,beep:5,word:'休息',custom:''},
+      rounds:8, autoStop:true,
+      longEvery:0, long:{m:0,s:0}
+    },
+    {
+      // 3) 番茄鐘（Pomodoro）
+      name: '番茄鐘 25/5 × 4 + 長休10 / Pomodoro 25/5 × 4 + LR10',
+      A:{m:25,s:0,beep:10,word:'發射',custom:''},
+      B:{m:5,s:0,beep:5,word:'休息',custom:''},
+      rounds:4, autoStop:true,
+      longEvery:4, long:{m:10,s:0}
+    },
+    {
+      // 4) EMOM
+      name: 'EMOM 40/20 × 10 / EMOM 40/20 × 10',
+      A:{m:0,s:40,beep:5,word:'開始',custom:''},
+      B:{m:0,s:20,beep:5,word:'休息',custom:''},
+      rounds:10, autoStop:true,
+      longEvery:0, long:{m:0,s:0}
+    }
+  ];
+
+  // 將 v2 預設「合併到」現有清單（同名不重複；若你想覆蓋同名，改成以名稱比對後替換）
+  function mergeDefaults(existing, defaults) {
+    const names = new Set(existing.map(r => r.name));
+    const merged = existing.slice();
+    defaults.forEach(d => {
+      if (!names.has(d.name)) merged.push(d);
+    });
+    return merged;
+  }
+
+  // 若從未種子過，或版本落後，就把 v2 合併進去
+  if (current < 2) {
+    const next = mergeDefaults(list, v2Defaults);
+    saveRecipes(next);
+    save(SEED_KEY, 2);
     refreshRecipeSelect();
-    if(load('dualTimersRecipes_seeded', false)) return;
-    const defaults=[
-      { name:'Tabata 20/10 × 8',
-        A:{m:0,s:20,beep:5,word:'開始',custom:''},
-        B:{m:0,s:10,beep:5,word:'休息',custom:''},
-        rounds:8, autoStop:true, longEvery:0, long:{m:0,s:0}
-      },
-      { name:'EMOM 40/20 × 10',
-        A:{m:0,s:40,beep:5,word:'開始',custom:''},
-        B:{m:0,s:20,beep:5,word:'休息',custom:''},
-        rounds:10, autoStop:true, longEvery:0, long:{m:0,s:0}
-      },
-      { name:'番茄鐘 25/5 × 4 + 長休10',
-        A:{m:25,s:0,beep:10,word:'發射',custom:''},
-        B:{m:5,s:0,beep:5,word:'休息',custom:''},
-        rounds:4, autoStop:true, longEvery:4, long:{m:10,s:0}
-      }
-    ];
-    saveRecipes(defaults); save('dualTimersRecipes_seeded', true); refreshRecipeSelect();
-    recipeSelect.value='0'; applyRecipe(defaults[0]);
-  })();
+    // 如果本來清單是空的，預設選到第 1 個（Archery SPT）
+    if (list.length === 0 && next.length > 0) {
+      recipeSelect.value = '0';
+      applyRecipe(next[0]);
+    }
+  } else {
+    // 已是 v2，維持現況
+    refreshRecipeSelect();
+  }
+})();
+
 })();
 </script>
 </body>
 </html>
+
